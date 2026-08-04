@@ -285,9 +285,13 @@ def search_then_ask(platform: str, question: str,
         # 允许按平台/项目级别覆盖默认
         search_provider = os.environ.get("AI302AI_SEARCH_PROVIDER") or search_default_provider(market)
     sr = search(question, search_provider, count=count, **search_kwargs)
+    # 直接走 chat/completions，避免再次进入 ask() 触发 ark→search_then_ask 无限递归
+    p, key = _pick_endpoint(platform)
+    p_no_ark = dict(p)
+    p_no_ark.pop("protocol", None)  # 强制 chat 协议
     if not sr.get("ok") or not sr.get("results"):
-        # 搜索失败/无结果 → 退回纯 LLM 调用
-        res = ask(platform, question)
+        # 搜索失败/无结果 → 退回纯 LLM 调用（chat 协议，不走 ark）
+        res = _ask_chat(p_no_ark, key, question, timeout=60)
         if res.get("ok"):
             res["search_provider"] = search_provider
             res["search_citations"] = []
@@ -309,7 +313,7 @@ def search_then_ask(platform: str, question: str,
         f"# 搜索结果（{search_provider}）\n{ctx}\n\n"
         f"# 用户问题\n{question}"
     )
-    res = ask(platform, enhanced_q)
+    res = _ask_chat(p_no_ark, key, enhanced_q, timeout=60)
     if res.get("ok"):
         res["search_provider"] = search_provider
         res["search_citations"] = [

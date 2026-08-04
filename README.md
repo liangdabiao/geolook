@@ -1,6 +1,6 @@
 <div align="center">
 
-# Geo**Look**
+# Geo**Look**  302AI版本
 
 **开源的全流程 GEO 实施平台 · 自托管**
 
