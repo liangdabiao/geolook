@@ -56,8 +56,9 @@ def _tasks_csv(data: dict, path: Path):
                         STATUS_CN.get(t["status"], t["status"]), len(t.get("affected", []))])
 
 
-def _overview_md(cfg, audit, metrics, data, verify_report, notes=None) -> str:
+def _overview_md(cfg, audit, metrics, data, verify_report, notes=None, existing=None) -> str:
     b = cfg["brand"]
+    existing = existing or set()
     s = data.get("summary", {})
     mk = {"cn": "国内", "global": "海外", "both": "国内 + 海外"}.get(cfg.get("market"), cfg.get("market"))
     L = [f"# {b['name']} · GEO 服务交付 · {G.today()}", "",
@@ -68,15 +69,22 @@ def _overview_md(cfg, audit, metrics, data, verify_report, notes=None) -> str:
     if metrics:
         L.append(f"- AI 答案采样：{metrics.get('sample_count')} 条（{metrics.get('date')}），"
                  f"覆盖 {len(metrics.get('platforms', {}))} 个平台端")
-    L += ["", "## 本期交付物", "",
-          "| 文件 | 内容 |", "|---|---|",
-          "| `01-诊断报告.html` | 站点技术底座、页面逐项体检、AI 答案可见性、与全国大盘对照 |",
-          "| `02-执行方案.md` | 30/60/90 天路线、六个工作包、资源取舍建议 |",
-          "| `03-工单表.html` / `.csv` | 可直接分派的任务，含负责角色、工作量、验收标准 |",
-          "| `04-验收表.html` | 上一期工单的自动验收结果（做没做完不靠口头确认） |",
-          "| `05-初稿风险清单.html` | AI 初稿里需人工核实的内容（有初稿时才有此项） |",
-          "| `06-建设地图.html` | **在哪些平台建设、建什么内容、当前覆盖度** |",
-          "| `assets/` | 可直接部署的资产：llms.txt、JSON-LD、HTML 片段、内容大纲与初稿 |",
+    # 本期交付物表格只列「实际生成的文件」并给相对链接——避免列出不存在的文件造成死链
+    def dl(files: list[str]) -> str:
+        return " / ".join(f"[{f}]({f})" for f in files if f in existing)
+    dl_manifest = [
+        (["01-诊断报告.html", "01-诊断报告.md"], "站点技术底座、页面逐项体检、AI 答案可见性、与全国大盘对照"),
+        (["02-执行方案.md"], "30/60/90 天路线、六个工作包、资源取舍建议"),
+        (["03-工单表.html", "03-工单表.csv", "03-工单表.md"], "可直接分派的任务，含负责角色、工作量、验收标准"),
+        (["04-验收表.html", "04-验收表.md"], "上一期工单的自动验收结果（做没做完不靠口头确认）"),
+        (["05-初稿风险清单.html", "05-初稿风险清单.md"], "AI 初稿里需人工核实的内容（有初稿时才有此项）"),
+        (["06-建设地图.html", "06-建设地图.md"], "在哪些平台建设、建什么内容、当前覆盖度"),
+    ]
+    L += ["", "## 本期交付物", "", "| 文件 | 内容 |", "|---|---|"]
+    for files, desc in dl_manifest:
+        if dl(files):
+            L.append(f"| {dl(files)} | {desc} |")
+    L += ["| `assets/` | 可直接部署的资产：llms.txt、JSON-LD、HTML 片段、内容大纲与初稿 |",
           "", "## 工单概览", "",
           f"- 总数 **{s.get('total', 0)}** 条，其中可**自动验收** {s.get('auto_verifiable', 0)} 条",
           f"- 优先级：P0 {s.get('by_priority', {}).get('P0', 0)}（{PRI_NOTE['P0']}）／"
@@ -98,14 +106,23 @@ def _overview_md(cfg, audit, metrics, data, verify_report, notes=None) -> str:
         L += ["## 本期数据口径说明", ""]
         L += [f"- {n}" for n in notes]
         L.append("")
-    L += ["## 怎么用这份交付", "",
-          "1. 先看 `01-诊断报告.html` 的「结论先行」和「本期待办」两节",
-          "2. 把 `03-工单表.csv` 导入你们的项目管理工具，按负责角色分派",
-          "3. `assets/` 里的文件可以直接交给开发部署（llms.txt、JSON-LD、HTML 片段）",
-          "4. `assets/outlines/` 是内容大纲，交给内容团队按骨架写；`assets/drafts/` 是 AI 初稿，"
-          "**必须先按 `05-初稿风险清单` 逐条核实后才能发布**——AI 会为了填满表格而编造竞品名和参数",
-          "5. 下一期我们会重跑体检与采样，自动验收哪些工单真的达标了",
-          "", "## 服务边界", "",
+    L += ["## 怎么用这份交付", ""]
+    howto = ["1. 先看 `[01-诊断报告.html](01-诊断报告.html)` 的「结论先行」和「本期待办」两节"]
+    if "03-工单表.csv" in existing:
+        howto.append("2. 把 `[03-工单表.csv](03-工单表.csv)` 导入你们的项目管理工具，按负责角色分派")
+    else:
+        howto.append("2. 按 `03-工单表.md` 的明细把工单导入你们的项目管理工具，按负责角色分派")
+    howto.append("3. `assets/` 里的文件可以直接交给开发部署（llms.txt、JSON-LD、HTML 片段）")
+    if "05-初稿风险清单.html" in existing:
+        howto.append("4. `assets/outlines/` 是内容大纲，交给内容团队按骨架写；`assets/drafts/` 是 AI 初稿，"
+                     "**必须先按 `[05-初稿风险清单.html](05-初稿风险清单.html)` 逐条核实后才能发布**——"
+                     "AI 会为了填满表格而编造竞品名和参数")
+    else:
+        howto.append("4. `assets/outlines/` 是内容大纲，交给内容团队按骨架写；"
+                     "`assets/drafts/` 里的 AI 初稿在核实事实前不得发布——AI 会为了填满表格而编造竞品名和参数")
+    howto.append("5. 下一期我们会重跑体检与采样，自动验收哪些工单真的达标了")
+    L += howto
+    L += ["", "## 服务边界", "",
           "- GEO 提升的是**被引用的概率**，不承诺任何平台一定会引用某个页面",
           "- 所有品牌事实、客户案例、价格与资质都必须有来源；无法核实的一律标注「待确认」，我们不会代为编造",
           "- AI 答案采样存在天然波动，单期指标变化需结合基线窗口与对照组解读，默认只作「观察相关」而非因果结论",
@@ -372,7 +389,8 @@ def run(slug: str) -> Path:
         shutil.copytree(adir, dst)
 
     # index + README
-    ov = _overview_md(cfg, audit, metrics, data, None if unverified else vrep, notes)
+    ov = _overview_md(cfg, audit, metrics, data, None if unverified else vrep, notes,
+                      existing={p.name for p in out.iterdir() if p.is_file()})
     (out / "index.md").write_text(ov, "utf-8")
     cards = [("站点均分", str(audit.get("avg_score"))),
              ("抓取页数", str(audit.get("page_count"))),
