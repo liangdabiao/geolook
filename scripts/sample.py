@@ -142,7 +142,7 @@ MANUAL_ONLY = {
 
 # ------------------------------------------------------------ 302.AI 统一 Key 模式
 # 一把 Key 跑通 9 个 LLM 平台。设 AI302AI_MODE=1 且填 AI302AI_API_KEY 后，
-# sample/aggregate 全部走 https://api.302.ai/v1（OpenAI 兼容 + Anthropic 兼容）。
+# sample/aggregate 全部走 https://api.302ai.cn/v1（国内端点·OpenAI 兼容 + Anthropic 兼容）。
 # 默认模型按"2026-08 最新稳定 + 轻量"原则选（采样是高频轻任务）。
 # 旗舰版本在 .env 里用 AI302AI_*_MODEL 覆盖即可。
 # 详见 docs/302ai-integration-research.md
@@ -295,11 +295,17 @@ def search_default_provider(market: str) -> str:
 
 def search_then_ask(platform: str, question: str,
                     search_provider: str = None, count: int = 5,
-                    **search_kwargs) -> dict:
+                    timeout: int | None = None, **search_kwargs) -> dict:
     """先 search 再 ask：把 top N 结果作为上下文拼到 prompt，让 LLM 基于搜索结果回答。
     这是 302.AI 模式下豆包 ark 联网的替代方案。
     搜索失败会自动退回纯 LLM 调用（不阻塞业务）。
+
+    timeout：单次 LLM 调用超时。缺省读 AI302AI_SEARCH_ASK_TIMEOUT（默认 45s）。
+    历史教训：这里一度硬编码 60s，且超时重试 2 次，每题失败约 3 分钟，
+    且 ask() 传进来的 timeout 被吞掉——已修复为可传参可配。
     """
+    if timeout is None:
+        timeout = int(os.environ.get("AI302AI_SEARCH_ASK_TIMEOUT", "45"))
     market = market_of(platform)
     if not search_provider:
         # 允许按平台/项目级别覆盖默认
@@ -311,7 +317,7 @@ def search_then_ask(platform: str, question: str,
     p_no_ark.pop("protocol", None)  # 强制 chat 协议
     if not sr.get("ok") or not sr.get("results"):
         # 搜索失败/无结果 → 退回纯 LLM 调用（chat 协议，不走 ark）
-        res = _ask_chat(p_no_ark, key, question, timeout=60)
+        res = _ask_chat(p_no_ark, key, question, timeout=timeout)
         if res.get("ok"):
             res["search_provider"] = search_provider
             res["search_citations"] = []
@@ -333,7 +339,7 @@ def search_then_ask(platform: str, question: str,
         f"# 搜索结果（{search_provider}）\n{ctx}\n\n"
         f"# 用户问题\n{question}"
     )
-    res = _ask_chat(p_no_ark, key, enhanced_q, timeout=60)
+    res = _ask_chat(p_no_ark, key, enhanced_q, timeout=timeout)
     if res.get("ok"):
         res["search_provider"] = search_provider
         res["search_citations"] = [
@@ -489,7 +495,7 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
         # 302.AI 模式下没有 ark 协议的 Responses+web_search；
         # 自动用 search_then_ask 走"302.AI 搜索 + 任何 LLM"组合补回联网能力
         if _ai302ai_enabled():
-            return search_then_ask(platform, question)
+            return search_then_ask(platform, question, timeout=timeout)
         return ask_ark(p, key, question, timeout)
     if p.get("protocol") == "anthropic":
         return ask_anthropic(p, key, question, timeout)

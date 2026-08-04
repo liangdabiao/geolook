@@ -86,6 +86,8 @@ python3 scripts/geo.py serve --slug <项目>
 - 打国内平台：`references/cn-platforms.md` ｜ 打海外：`references/global-platforms.md`
 - 写内容/改页面：`references/content-patterns.md`
 - 更深方法或原始数据：`references/sources.md`（含 GEORank / GEOFlow 选型说明）
+- **采样/平台异常先对表**：`references/known-issues.md`（豆包超时、302 国内/海外端点模型目录、
+  SPA 空壳、llms.txt 范围过滤）
 
 不要凭经验给 GEO 建议。**每条建议都要能追到 `method.md` 里的某条实测数字**，
 说不出依据的别写进方案。
@@ -165,6 +167,9 @@ python3 scripts/geo.py init --url <产品官网> --name <品牌名> --market bot
 | 海外 | Perplexity | `PERPLEXITY_API_KEY` | 原生联网并返回 citations，海外证据质量最好 |
 
 Key 放项目根目录 `.env`（已 gitignore，权限 600），脚本自动加载。
+
+豆包在 302.AI 模式下走「搜索+回答」组合，单题超时读 `.env` 的 `AI302AI_SEARCH_ASK_TIMEOUT`
+（默认 45s）。平台/端点异常先对 `references/known-issues.md` 对表，别让任务空转。
 
 没有公开联网 API 的——国内纳米AI搜索/百度AI/豆包 App，海外 ChatGPT 网页版/
 Claude 网页版——走人工或浏览器采样：

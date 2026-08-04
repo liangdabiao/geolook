@@ -73,7 +73,15 @@ def gen_llms_txt(slug: str, lang: str = "zh") -> str:
     f = parse_facts(slug)
     b = cfg["brand"]
     audit = G.read_json(G.project_dir(slug) / "audit.json", {})
-    pages = sorted(audit.get("pages", []), key=lambda p: -p["score"])[:12]
+    pages = sorted(audit.get("pages", []), key=lambda p: -p["score"])
+    # 范围过滤：品牌只聚焦某个口径（如只做手机）时，把超范围页面挡在 llms.txt 之外。
+    # 不配 llms_include_urls/llms_exclude_urls = 全部按分数取前 12；过滤后为空则回退全量前 12。
+    include = b.get("llms_include_urls") or []
+    exclude = b.get("llms_exclude_urls") or []
+    filtered = [p for p in pages
+                if (not include or any(s in p.get("url", "") for s in include))
+                and not any(s in p.get("url", "") for s in exclude)]
+    pages = (filtered if filtered else pages)[:12]
 
     zh = lang == "zh"
     L = [f"# {b['name']}", ""]

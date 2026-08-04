@@ -4,6 +4,11 @@
 > 目标：能否用 302.AI 一个 Key 替代 GeoLook 当前 9 个 LLM Key？
 > 结论：✅ **完全可行**，并能进一步统一联网搜索、文生图、TTS 等能力。建议采用 **「302.AI 优先，原始 Key 兜底」** 的双轨模式。
 
+> ⚠️ **2026-08-04 实测更新（重要）**：本账号走的是**国内端点 `https://api.302ai.cn`（新版本目录）**，
+> 与本文多数地方写的海外端点 `api.302.ai` **模型 ID 不一致**。判断「某平台/某模型是否可用」，
+> **一律以 `GET https://api.302ai.cn/v1/models` 的全量列表实测为准**，别拿海外目录的旧 ID 下结论
+> （曾因此误判 gemini/claude/perplexity 不可用）。代码里 `AI302AI_BASE` 已默认国内端点。
+
 ---
 
 ## 1. 结论摘要
@@ -142,8 +147,8 @@ res = sample.ask("doubao", "GeoLook 跟传统 SEO 比有什么优势？", timeou
 # 内部实际跑：bocha 搜索 5 条 → 拼到 prompt → doubao-seed-2-1-turbo-260628 回答
 # 返回 {"answer", "search_citations": [5条], "search_provider": "bocha"}
 
-# 指定 provider 做深度研究
-res = sample.ask("claude", "最新 GEO 论文", search_provider="exa", count=10, category="research paper")
+# 指定 provider 做深度研究（search_provider/count/category 走 search_then_ask，ask() 不接收这些参数）
+res = sample.search_then_ask("claude", "最新 GEO 论文", search_provider="exa", count=10, category="research paper")
 ```
 
 ---
@@ -326,7 +331,7 @@ DEEPSEEK_API_KEY=
 
 | 风险 | 严重度 | 缓解 |
 |---|---|---|
-| **api.302.ai 走海外域名** | 🔴 高（国内用户） | 文档化测速；建议部署机放海外/香港；与原版双轨兜底 |
+| **api.302.ai 走海外域名** | 🔴 高（国内用户） | **已缓解**：改用国内端点 `api.302ai.cn`（新目录，模型 ID 与海外不同，2026-08-04 实测可用）；`AI302AI_BASE` 已默认国内端点；仍保留文档化测速 + 原版双轨兜底 |
 | **单点故障** | 🟡 中 | 双轨模式：原 Key 仍保留，`AI302AI_MODE=0` 即退回 |
 | **模型名映射漂移**（302.AI 模型下线/改名）| 🟡 中 | 启动时 `GET /v1/models?llm=1` 校验；缺失平台降级到原始 Key |
 | **预算失控** | 🟡 中 | 302.AI 提供 `record get <request_id>` 看花费；可加 `--max-cost` 硬限 |
