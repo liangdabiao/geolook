@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import requests
 import re
 import threading
 import time
@@ -258,6 +259,33 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/keys":
                 import sample as S
                 rows = []
+                # ---------- 302.AI 合成行：始终放最前（推荐入口） ----------
+                ai_key = os.environ.get("AI302AI_API_KEY", "").strip()
+                ai_mode = os.environ.get("AI302AI_MODE", "").strip().lower() in ("1", "true", "yes", "on")
+                ai_ok = ai_mode and bool(ai_key)
+                rows.insert(0, {
+                    "code": "ai302ai",
+                    "label": "⚡ 302.AI 统一模式（推荐 · 1 把 Key 跑通 9 个 LLM + 9 个搜索）",
+                    "market": "global", "search": True,
+                    "env": "AI302AI_API_KEY",
+                    "ok": ai_ok,
+                    "key_tail": ai_key[-4:] if len(ai_key) >= 8 else "",
+                    "mode_on": ai_mode,
+                    "search_provider": os.environ.get("AI302AI_SEARCH_PROVIDER", "").strip(),
+                    "models": [{"code": c, "label": S.AI302AI_PROVIDERS[c]["model"],
+                                "env": S.AI302AI_PROVIDERS[c]["model_env"]}
+                               for c in S.AI302AI_PROVIDERS],
+                    "search_providers": [
+                        {"code": c,
+                         "label": S.AI302AI_SEARCH_PROVIDERS[c].get("desc", c),
+                         "default_for": S.AI302AI_SEARCH_PROVIDERS[c].get("default_for", ""),
+                         "market": S.AI302AI_SEARCH_PROVIDERS[c].get("market", "global")}
+                        for c in S.AI302AI_SEARCH_PROVIDERS
+                    ],
+                    "model": "", "model_env": None, "model_set": False,
+                    "note": "302.AI 提供 OpenAI / Anthropic 双协议，把 9 个 LLM 平台的差异隐藏成一把 Key。默认模型为 2026-08 最新稳定版。",
+                })
+                # ---------- 各平台原生 Key（兜底，折叠显示） ----------
                 for code, spec in S.PROVIDERS.items():
                     key = os.environ.get(spec["key_env"], "")
                     menv = spec.get("model_env")
@@ -452,6 +480,13 @@ class Handler(BaseHTTPRequestHandler):
                         allowed.add(spec["model_env"])
                 for spec in P.PUBLISHERS.values():
                     allowed.update(spec["env"])
+                # 允许 302.AI 模式相关变量
+                allowed.add("AI302AI_MODE")
+                allowed.add("AI302AI_API_KEY")
+                allowed.add("AI302AI_SEARCH_PROVIDER")
+                for c, spec in S.AI302AI_PROVIDERS.items():
+                    if spec.get("model_env"):
+                        allowed.add(spec["model_env"])
                 updates = body.get("updates")
                 if not isinstance(updates, dict) or not updates:
                     return self._json({"ok": False, "error": "updates 必须是非空对象"}, 400)
@@ -464,6 +499,65 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": "值不能包含换行"}, 400)
                 write_env(clean)
                 return self._json({"ok": True})
+
+            if p == "/api/ai302ai":
+                """302.AI 模式结构化端点：
+                  POST {action: "enable",  api_key: "sk-..."}        # 一键启用
+                  POST {action: "disable"}                             # 关闭
+                  POST {action: "test",   api_key: "sk-..."}            # 验证 Key 有效性
+                  POST {action: "set",    api_key?, search_provider?, model_overrides?}  # 细粒度更新
+                """
+                import sample as S
+                action = body.get("action", "")
+                if action == "test":
+                    key = str(body.get("api_key", "")).strip()
+                    if not key:
+                        return self._json({"ok": False, "error": "缺少 api_key"}, 400)
+                    try:
+                        r = requests.get(
+                            "https://api.302ai.cn/v1/models",
+                            headers={"Authorization": f"Bearer {key}"},
+                            timeout=15,
+                        )
+                        if r.status_code == 200:
+                            data = r.json()
+                            models = data.get("data") or []
+                            return self._json({"ok": True, "models_count": len(models)})
+                        return self._json({"ok": False, "error": f"HTTP {r.status_code}: {r.text[:200]}"})
+                    except Exception as e:  # noqa: BLE001
+                        return self._json({"ok": False, "error": f"{type(e).__name__}: {e}"})
+                if action == "enable":
+                    key = str(body.get("api_key", "")).strip()
+                    if not key:
+                        return self._json({"ok": False, "error": "缺少 api_key"}, 400)
+                    write_env({"AI302AI_MODE": "1", "AI302AI_API_KEY": key})
+                    # 清掉警告标记
+                    if hasattr(S._ai302ai_enabled, "_warned"):
+                        S._ai302ai_enabled._warned = False  # type: ignore[attr-defined]
+                    return self._json({"ok": True, "mode": "enabled"})
+                if action == "disable":
+                    write_env({"AI302AI_MODE": "0"})
+                    return self._json({"ok": True, "mode": "disabled"})
+                if action == "set":
+                    u = {}
+                    if "api_key" in body:
+                        u["AI302AI_API_KEY"] = str(body.get("api_key", "")).strip()
+                    if "search_provider" in body:
+                        sp = str(body.get("search_provider", "")).strip()
+                        if sp and sp not in S.AI302AI_SEARCH_PROVIDERS:
+                            return self._json({"ok": False, "error": f"未知 search_provider：{sp}"}, 400)
+                        u["AI302AI_SEARCH_PROVIDER"] = sp
+                    if "model_overrides" in body:
+                        for code, val in (body.get("model_overrides") or {}).items():
+                            if code in S.AI302AI_PROVIDERS:
+                                env = S.AI302AI_PROVIDERS[code].get("model_env")
+                                if env:
+                                    u[env] = str(val).strip()
+                    if not u:
+                        return self._json({"ok": False, "error": "没有可更新的字段"}, 400)
+                    write_env(u)
+                    return self._json({"ok": True, "updated": list(u.keys())})
+                return self._json({"ok": False, "error": f"未知 action：{action!r}"}, 400)
 
             if p.startswith("/api/publishcfg/"):
                 import publish as P

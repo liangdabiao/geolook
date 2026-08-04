@@ -146,7 +146,7 @@ MANUAL_ONLY = {
 # 默认模型按"2026-08 最新稳定 + 轻量"原则选（采样是高频轻任务）。
 # 旗舰版本在 .env 里用 AI302AI_*_MODEL 覆盖即可。
 # 详见 docs/302ai-integration-research.md
-AI302AI_BASE = "https://api.302.ai/v1"
+AI302AI_BASE = "https://api.302ai.cn/v1"
 # code -> 默认模型 + 覆盖用的 env 名；未列出的平台不支持 302.AI 替代
 AI302AI_PROVIDERS = {
     # GLM：智谱最新是 glm-5.2（旗舰）/ glm-4.7-flashx（轻量），采样选轻量档
@@ -201,7 +201,7 @@ def _ai302ai_enabled() -> bool:
 # 一把 Key + 9 个搜索 provider。详见 .claude/skills/302ai-cli-skill/references/search.md
 # 端点：POST https://api.302.ai/302/general/search
 # 默认按市场分流：cn → bocha（中文质量好），global → tavily（英文质量好）
-AI302AI_SEARCH_URL = "https://api.302.ai/302/general/search"
+AI302AI_SEARCH_URL = "https://api.302ai.cn/302/general/search"
 # provider -> {market, categories, time_ranges}，描述每个 provider 的能力/适配市场
 AI302AI_SEARCH_PROVIDERS = {
     "bocha":          {"market": "cn",    "default_for": "cn",

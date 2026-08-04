@@ -1289,15 +1289,39 @@ async function vSettings(){
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px">
-      <div class="card elev" style="padding:18px;gap:10px">
-        <div><div style="font-size:15px;font-weight:500">引擎与密钥</div>
-          <div style="font-size:11.5px;color:var(--t600)">点「配置」填 Key 和模型，写入项目根目录 .env，立即生效。无 API 的引擎走人工采样表。</div></div>
-        ${(KEYS||[]).map((k,i)=>`<div class="row" style="padding:5px 0;box-shadow:inset 0 -1px 0 var(--line)">
-          <span class="dot" style="background:${k.ok===true?'var(--a400)':k.ok===false?'#595d6c':'#3f424d'}"></span>
-          <span style="flex:1;font-size:13px">${esc(k.label)}<span class="muted" style="font-size:11px;margin-left:6px">${mktLabel(k.market)}${k.search?' · 联网':''}</span></span>
-          ${k.env?`<span style="font-size:11.5px;color:var(--t600)">${k.ok===true?'已配置'+(k.key_tail?' ····'+esc(k.key_tail):''):esc(k.env)}</span>
-            <button class="btn btn-ghost" style="font-size:12px;padding:2px 8px" onclick="editKey(${i})">${k.ok===true?'修改':'配置'}</button>`
-          :`<span style="font-size:11.5px;color:var(--t600)">人工采样</span>`}</div>`).join('')}
+      <div class="card elev" style="padding:18px;gap:10px;border:1px solid var(--a700);box-shadow:0 0 0 1px var(--a700)">
+        ${(()=>{
+          const ai=(KEYS||[]).find(k=>k.code==='ai302ai');
+          if(!ai) return '';
+          const ok=ai.ok, ktail=ai.key_tail, sp=ai.search_provider||'auto';
+          const sps=ai.search_providers||[], models=ai.models||[];
+          const marketDot=(m)=>m==='cn'?'🇨🇳':m==='global'?'🌍':'⚡';
+          return `
+            <div><div style="font-size:15px;font-weight:500">⚡ 302.AI 模式（推荐）</div>
+              <div style="font-size:11.5px;color:var(--t600);margin-top:4px;line-height:1.55">${esc(ai.note)}</div></div>
+            <div class="row" style="padding:4px 0;box-shadow:inset 0 -1px 0 var(--line)">
+              <span class="dot" style="background:${ok?'var(--a400)':'#595d6c'}"></span>
+              <span style="flex:1;font-size:13px">${ok?'✓ 已启用':'未启用'}${ktail?'（Key ····'+esc(ktail)+'）':''}</span>
+              <button class="btn btn-primary" style="font-size:12px;padding:3px 9px" onclick="editAi302ai()">${ok?'修改配置':'启用 302.AI'}</button>
+              ${ok?`<button class="btn btn-ghost" style="font-size:12px;padding:3px 9px" onclick="disableAi302ai()">关闭</button>`:''}
+            </div>
+            ${ok?`
+              <div style="font-size:12px;color:var(--t500)">默认搜索 provider：<b>${esc(sp||'(自动按市场)')}</b>
+                <span class="muted" style="font-size:11.5px;margin-left:6px">国内 cn → bocha · 海外 global → tavily</span></div>
+              <div style="font-size:11.5px;color:var(--t600);margin-top:4px">可用的 ${sps.length} 个搜索 provider：
+                ${sps.slice(0,6).map(s=>`<span class="tag" style="margin:2px 2px;font-size:10.5px">${marketDot(s.market)} ${esc(s.code)}${s.default_for?' · 默认':''}</span>`).join('')}
+                ${sps.length>6?`<span class="muted" style="font-size:10.5px">+${sps.length-6} 更多</span>`:''}
+              </div>
+              <details style="margin-top:6px"><summary style="font-size:11.5px;color:var(--t500);cursor:pointer">10 个 LLM 模型（2026-08 默认）</summary>
+                <div style="margin-top:6px;font-size:11.5px;line-height:1.7">
+                  ${models.map(m=>`<div>· <code style="color:var(--a300)">${esc(m.code)}</code> → <code>${esc(m.label)}</code></div>`).join('')}
+                </div></details>
+            `:`
+              <div style="font-size:12px;color:var(--t400);line-height:1.55">未启用 302.AI 也能用：自动采样会跳过无 Key 的引擎，走人工采样表。
+                启用后 <b>1 把 Key 即可解锁全部 9 个 LLM + 9 个搜索</b>。</div>
+            `}
+          `;
+        })()}
       </div>
       <div class="card elev" style="padding:18px;gap:10px">
         <div><div style="font-size:15px;font-weight:500">运行任务</div>
@@ -1320,6 +1344,24 @@ async function vSettings(){
         <pre class="log" id="joblog" style="max-height:260px"></pre>
       </div>
     </div>
+
+    <details style="margin-top:14px" id="adv-keys">
+      <summary style="font-size:13.5px;font-weight:500;cursor:pointer;padding:10px 0;color:var(--t500)">
+        高级：各平台原生 Key（兜底，302.AI 模式下通常不用填）<span class="muted" style="font-size:11.5px;margin-left:6px">${(KEYS||[]).filter(k=>k.code!=='ai302ai'&&k.ok===true).length}/${(KEYS||[]).filter(k=>k.code!=='ai302ai'&&k.env).length} 已配</span>
+      </summary>
+      <div class="card elev" style="padding:18px;gap:10px;margin-top:8px">
+        <div style="font-size:11.5px;color:var(--t600)">想在 302.AI 之外直连某个平台（例如想用免费额度、想用自家企业 Key），在这里单独填。无 API 的引擎走人工采样表。</div>
+        ${(KEYS||[]).filter(k=>k.code!=='ai302ai').map((k,i)=>{
+          const realI=(KEYS||[]).indexOf(k);
+          return `<div class="row" style="padding:5px 0;box-shadow:inset 0 -1px 0 var(--line)">
+            <span class="dot" style="background:${k.ok===true?'var(--a400)':k.ok===false?'#595d6c':'#3f424d'}"></span>
+            <span style="flex:1;font-size:13px">${esc(k.label)}<span class="muted" style="font-size:11px;margin-left:6px">${mktLabel(k.market)}${k.search?' · 联网':''}</span></span>
+            ${k.env?`<span style="font-size:11.5px;color:var(--t600)">${k.ok===true?'已配置'+(k.key_tail?' ····'+esc(k.key_tail):''):esc(k.env)}</span>
+              <button class="btn btn-ghost" style="font-size:12px;padding:2px 8px" onclick="editKey(${realI})">${k.ok===true?'修改':'配置'}</button>`
+            :`<span style="font-size:11.5px;color:var(--t600)">人工采样</span>`}</div>`;
+        }).join('')}
+      </div>
+    </details>
     <div class="card elev" style="padding:18px;gap:10px;margin-top:14px">
       <div><div style="font-size:15px;font-weight:500">发布渠道</div>
         <div style="font-size:11.5px;color:var(--t600)">把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；<b>发布永远由你手动点击，没有自动发布</b>；公众号 / WordPress 只建草稿，在各自后台确认后才对外。</div></div>
@@ -1444,6 +1486,104 @@ async function saveKey(i,clear){
   if(r.ok){closeModal();KEYS=null;render()}
 }
 
+/* ===================== 302.AI 配置 ===================== */
+function editAi302ai(){
+  const ai=KEYS.find(k=>k.code==='ai302ai');
+  if(!ai){toast('加载失败，请刷新','err');return}
+  const sps=ai.search_providers||[], models=ai.models||[];
+  const curSp=ai.search_provider||'';
+  modal(`<h4 style="font-size:17px">⚡ 302.AI 统一模式</h4>
+    <p class="muted" style="font-size:12.5px;margin:4px 0 12px;line-height:1.55">在 <a href="https://302.ai" target="_blank" style="color:var(--a300)">302.AI</a> 控制台申请一把 API Key，即可解锁全部 9 个 LLM 平台 + 9 个搜索 provider。</p>
+
+    <div class="field"><label>302.AI API Key${ai.key_tail?'（已配 ····'+esc(ai.key_tail)+'）':''}</label>
+      <input id="ai-key" class="input" type="password" autocomplete="off" placeholder="sk-...（留空保持不变）">
+      <div class="row" style="margin-top:4px;gap:4px">
+        <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="testAi302aiKey()">测试 Key</button>
+        <span id="ai-test-result" class="muted" style="font-size:11.5px"></span>
+      </div>
+    </div>
+
+    <div class="field"><label>默认搜索 Provider（不选则按市场自动：cn→bocha，global→tavily）</label>
+      <select id="ai-sp" class="input">
+        <option value="" ${!curSp?'selected':''}>（自动）</option>
+        ${sps.map(s=>`<option value="${esc(s.code)}" ${curSp===s.code?'selected':''}>${s.default_for==='cn'?'🇨🇳 ':s.default_for==='global'?'🌍 ':''}${esc(s.code)} — ${esc(s.label)}${s.default_for?'（'+s.default_for+' 默认）':''}</option>`).join('')}
+      </select>
+    </div>
+
+    <details><summary style="font-size:12.5px;cursor:pointer;color:var(--t500);padding:6px 0">高级：覆盖 10 个 LLM 的模型（不填用 2026-08 默认）</summary>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        ${models.map(m=>`<div class="field" style="margin:0"><label style="font-size:11.5px">${esc(m.code)} <span class="muted">→ ${esc(m.label)}</span></label>
+          <input class="input ai-model" data-code="${esc(m.code)}" data-env="${esc(m.env)}" placeholder="${esc(m.label)}" style="font-size:12px;padding:4px 8px"></div>`).join('')}
+      </div>
+    </details>
+
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveAi302ai()">保存</button></div>`);
+}
+async function testAi302aiKey(){
+  const k=$('#ai-key').value.trim()||$('#ai-key').placeholder;
+  if(!k||!k.startsWith('sk-')){$('#ai-test-result').textContent='请先填入 Key（sk-...）';$('#ai-test-result').style.color='var(--t500)';return}
+  $('#ai-test-result').textContent='测试中…';$('#ai-test-result').style.color='var(--t500)';
+  const r=await post('/api/ai302ai',{action:'test',api_key:k});
+  if(r.ok){$('#ai-test-result').textContent='✓ 有效（'+r.models_count+' 个模型可访问）';$('#ai-test-result').style.color='var(--a400)'}
+  else{$('#ai-test-result').textContent='✗ '+(r.error||'失败');$('#ai-test-result').style.color='#e0625a'}
+}
+async function saveAi302ai(){
+  const ai=KEYS.find(k=>k.code==='ai302ai');
+  const k=$('#ai-key').value.trim();
+  const sp=$('#ai-sp').value;
+  const overrides={};
+  document.querySelectorAll('.ai-model').forEach(el=>{
+    const v=el.value.trim();
+    if(v) overrides[el.dataset.code]=v;
+  });
+  // 用结构化端点一次性写
+  const updates={};
+  if(k) updates.api_key=k;
+  if(sp!==(ai.search_provider||'')) updates.search_provider=sp;
+  if(Object.keys(overrides).length) updates.model_overrides=overrides;
+  if(!Object.keys(updates).length && ai.ok){
+    // 没改东西但已经启用 → 只关弹窗
+    closeModal();return;
+  }
+  // 第一次启用：先 enable
+  if(!ai.ok && k){
+    const r1=await post('/api/ai302ai',{action:'enable',api_key:k});
+    if(!r1.ok){toast('启用失败：'+(r1.error||''),'err');return}
+  }else if(ai.ok && !k && (sp!==(ai.search_provider||'') || Object.keys(overrides).length)){
+    // 已启用但只改 provider/模型：调 set
+    const r=await post('/api/ai302ai',{action:'set',search_provider:sp,model_overrides:overrides});
+    if(!r.ok){toast('保存失败：'+(r.error||''),'err');return}
+  }else if(ai.ok && k){
+    // 改 Key：调 enable 覆盖
+    const r=await post('/api/ai302ai',{action:'enable',api_key:k});
+    if(!r.ok){toast('更新 Key 失败：'+(r.error||''),'err');return}
+    if(sp||Object.keys(overrides).length){
+      const r2=await post('/api/ai302ai',{action:'set',search_provider:sp,model_overrides:overrides});
+      if(!r2.ok){toast('保存其他配置失败：'+(r2.error||''),'err');return}
+    }
+  }
+  toast('已保存','ok');
+  closeModal();KEYS=null;render();
+}
+async function disableAi302ai(){
+  if(!confirm('确定要关闭 302.AI 模式吗？\n后续采样会改用原生 Key（未填将走人工采样表）。'))return;
+  const r=await post('/api/ai302ai',{action:'disable'});
+  if(r.ok){toast('已关闭','ok');KEYS=null;render()}
+  else{toast('失败：'+(r.error||''),'err')}
+}
+async function obEnableAi(){
+  const k=document.getElementById('ob-aikey').value.trim();
+  if(!k){toast('请先粘贴 302.AI Key','err');return}
+  const r=await post('/api/ai302ai',{action:'enable',api_key:k});
+  if(r.ok){
+    toast('已启用 302.AI 模式','ok');
+    KEYS=null;  // 强制重新加载
+    render();
+  }else{toast('失败：'+(r.error||''),'err')}
+}
+
 /* ===================== 接入引导 ===================== */
 async function vOnboard(){
   const s=ST.obStep;
@@ -1456,9 +1596,22 @@ async function vOnboard(){
   let body='';
   if(s===1){
     body=`<div style="display:flex;flex-direction:column;gap:14px">
+      ${(function(){
+        const ai=KEYS.find(k=>k.code==='ai302ai');
+        if(!ai||ai.ok) return '';
+        return `<div class="card" style="box-shadow:0 0 0 1px var(--a700);padding:14px 16px;gap:6px;display:flex;flex-direction:column">
+          <div style="font-size:13.5px;font-weight:500">⚡ 快速开始：启用 302.AI 模式（1 把 Key 解锁全部）</div>
+          <div style="font-size:12.5px;color:var(--t400);line-height:1.6">不用挨个配 9 个平台 Key。在 <a href="https://302.ai" target="_blank" style="color:var(--a300)">302.AI 控制台</a> 申请一把 API Key 即可，模型默认就是 2026-08 最新。</div>
+          <div class="row" style="margin-top:4px;gap:6px;flex-wrap:wrap">
+            <input id="ob-aikey" class="input" type="password" placeholder="sk-...（粘贴 302.AI Key）" style="flex:1;min-width:240px">
+            <button class="btn btn-primary" style="font-size:12.5px" onclick="obEnableAi()">启用 302.AI</button>
+            <button class="btn btn-ghost" style="font-size:12px" onclick="go('settings')">不用，我配原生 Key →</button>
+          </div>
+        </div>`;
+      })()}
       ${noKey?`<div class="card" style="box-shadow:0 0 0 1px var(--a700);padding:14px 16px;gap:6px">
         <div style="font-size:13.5px;font-weight:500">⚠ 还没有配置任何引擎 API Key</div>
-        <div style="font-size:12.5px;color:var(--t400);line-height:1.6">自动引导中的「答案采样」和「AI 推导问题库 / 品牌事实」需要至少一个引擎 Key（推荐先配 DeepSeek 或智谱GLM）。不配置也能创建——但只会做抓站与站点体检，问题库和品牌事实需要手动填写。</div>
+        <div style="font-size:12.5px;color:var(--t400);line-height:1.6">自动引导中的「答案采样」和「AI 推导问题库 / 品牌事实」需要至少一个引擎 Key。<b>推荐先用上面的 302.AI 一键启用</b>，或到「设置」配 9 个平台的 Key。不配置也能创建——但只会做抓站与站点体检，问题库和品牌事实需要手动填写。</div>
         <div class="row" style="margin-top:4px">
           <button class="btn btn-secondary" style="font-size:12.5px" onclick="go('settings')">去配置 Key →</button>
           <span class="muted" style="font-size:11.5px">配好后回到这里继续</span></div>
