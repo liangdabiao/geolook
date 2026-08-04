@@ -1,24 +1,92 @@
 <div align="center">
 
-# Geo**Look**  302AI版本
+# Geo**Look**  ·  302.AI 版本
 
-**开源的全流程 GEO 实施平台 · 自托管**
+**开源的全流程 GEO 实施平台 · 自托管 · 一把 Key 走天下**
 
 面向具体项目：现状分析 → 诊断 → 方案 → 实施计划工单 → 执行落地 → 效果验收
 
-简体中文 · [English](README.en.md)
-
-![License](https://img.shields.io/badge/license-MIT-9184d9) ![Python](https://img.shields.io/badge/python-3.9%2B-9184d9) ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-9184d9) ![Deps](https://img.shields.io/badge/deps-requests%20·%20bs4%20·%20lxml-9184d9)
 
 ![产品演示](docs/demo.gif)
 
-🌐 [官网 geolook.cc](https://geolook.cc) · 🔍 [在线演示（只读）](https://geolook.cc/demo/) · 📹 [高清演示视频 (mp4)](docs/demo.mp4) · 🖼 [全部截图](docs/screenshots/)
+ 🔍 [在线演示（只读）](https://geolook.cc/demo/) 
 
-<sub>域名生效前可用镜像：[geolook-three.vercel.app](https://geolook-three.vercel.app) · [演示](https://geolook-three.vercel.app/demo/)</sub>
 
 </div>
 
 > GEO = 生成式引擎优化（Generative Engine Optimization）：让 DeepSeek、豆包、ChatGPT、Perplexity 这些 AI 引擎在回答用户问题时，**主动提到并引用你的品牌**。不是地理信息，也不是传统 SEO。
+
+## ⚡ 302.AI 模式（推荐）
+
+> **一把 API Key 调用全部 10 个 LLM 平台 + 9 个搜索 provider**。原生集成，开箱即用。
+
+**之前**：要给 9 个 LLM 平台（DeepSeek / 豆包 / Claude / GPT / Gemini / GLM / Kimi / Perplexity / Grok / MiniMax）分别申请 Key、配 base URL、处理 3 种协议（OpenAI / Anthropic / 火山方舟）。
+
+**现在**（302.AI 模式）：一把 Key 全部搞定，默认模型**全部升级到 2026-08 最新稳定版**。
+
+### 一键安装和使用：
+
+在workbuddy，codex, claude code，等平台：
+直接命令要求安装skill:https://github.com/liangdabiao/geolook
+
+注册302.AI Key：https://www.302.ai/302ai-key
+把302.AI Key 告诉你的AI
+
+一句话使用：
+请帮忙  GeoLook skill 调研  小米手机品牌
+
+
+
+### 速览
+
+| 对比项 | 多 Key 模式 | **302.AI 模式** |
+|---|---|---|
+| Key 数量 | 9 | **1** |
+| 协议 | 3 种（OpenAI / Anthropic / 火山方舟）| 2 种（OpenAI / Anthropic） |
+| 平台支持 | 9 个 LLM | 9 个 LLM（一把 Key 通用） |
+| **联网搜索** | 豆包 ark + Perplexity 共 2 个 | **9 个搜索 provider**（bocha / tavily / exa / metaso / firecrawl / perplexity / unifuncs / search1_search / search1_news）|
+| 模型版本 | 用户手动维护 | **默认 2026-08 最新**（gpt-5.4-mini / claude-sonnet-5 / gemini-3.5-flash / deepseek-v4-flash / ...）|
+| Claude Opus 4.6 价格 | 官方 $15 / 1M | 302.AI 折后 **$5 / 1M**（3 倍便宜）|
+| Windows 兼容 | ❌ 需 WSL（用了 `fcntl`）| ✅ **已加 `try/except` 兜底**，系统代理自动检测 |
+| 切换 | 改多份配置 | 改一个 `AI302AI_MODE=0/1` |
+
+### 9 个搜索 provider（默认按市场分流：cn→bocha，global→tavily）
+
+| Provider | 市场 | 强项 | 实测 |
+|---|---|---|---|
+| **bocha** | 🇨🇳 默认 | 中文搜索质量最好 | ✅ |
+| **tavily** | 🌍 默认 | 英文/海外搜索质量最好 | ✅ |
+| exa | 🌍 | 研究论文 / GitHub / 推特（高质量检索）| ✅ |
+| metaso | 🌍 | 学术 / 播客 / 视频（深度研究）| ✅ |
+| **firecrawl** | 🌍 | **带整页爬取**（可拿全文做内容分析）| ✅ 直击 GitHub repo |
+| search1_search | 🌍 | **13 平台聚合**（google/微信/b站/github/arxiv...）| ✅ |
+| search1_news | 🌍 | 偏新闻版 | ✅ |
+| perplexity | 🌍 | 与 perplexity LLM 同源 | ✅ |
+| unifuncs | 🇨🇳 | 中文深度调研 | ⚠️ 服务端 500（与代码无关，自动 fallback）|
+
+### 编程用法
+
+```python
+# scripts/sample.py 提供的能力
+import sample
+
+# 1) 纯搜索（9 个 provider 任选）
+sample.search("GeoLook GEO 工具", provider="bocha", count=5)
+
+# 2) 一问多平台对比
+for plat in ["deepseek", "claude", "gemini"]:
+    r = sample.ask(plat, "X 跟 Y 比有什么优势？", search_provider="tavily")
+    print(plat, "→", r["answer"][:80], " | 引用", len(r.get("search_citations", [])))
+
+# 3) search_then_ask：搜索结果直接喂给 LLM（302.AI 模式下豆包 ark 联网的替代方案）
+r = sample.ask("doubao", "什么是 GEO 优化？", timeout=60)
+# 内部：bocha 搜 5 条 → 拼 prompt → doubao-seed-2-1-turbo-260628 回答
+# 返回带 search_citations（5 条带 URL 的引用）
+```
+
+详细调研见 [docs/302ai-integration-research.md](docs/302ai-integration-research.md)。
+
+---
 
 ## 一、解决什么问题
 
@@ -96,27 +164,40 @@
 
 ### 环境要求
 
-- macOS 或 Linux（Windows 请用 WSL；代码用了 `fcntl` 文件锁）
+- macOS / Linux / **Windows（已支持）**
 - Python **3.9+**
 - 唯三的第三方依赖：`requests`、`beautifulsoup4`、`lxml`
+- Windows 用户的 `fcntl` 锁与系统代理已做自动兼容，无需 WSL
 
 ### 三步跑起来
 
 ```bash
 # 1. 克隆并安装依赖
-git clone https://github.com/bingqiang2021/geolook.git
+git clone https://github.com/liangdabiao/geolook.git
 cd geolook
 pip3 install requests beautifulsoup4 lxml
 
 # 2. 启动看板（自动打开浏览器）
 python3 scripts/geo.py ui        # → http://127.0.0.1:8765
 
-# 3.（可选）配置引擎 API Key
-#    方式 A：看板「设置 → 引擎与密钥」里点「配置」填入，自动写进本地 .env
-#    方式 B：cp .env.example .env 后手动编辑
+# 3.（推荐）配置 302.AI Key —— 一把 Key 解锁全部 9 个 LLM 平台 + 9 个搜索
+cp .env.example .env
+# 编辑 .env 加 3 行：
+#   AI302AI_MODE=1
+#   AI302AI_API_KEY=sk-你的302AI密钥
+# 看板「设置 → 引擎与密钥」里点「配置」填入也可，自动写进本地 .env
 ```
 
-**一个 Key 都不配也能用**：自动采样会跳过，改用「导出人工采样表 → 人工/浏览器采样 → 回灌」的流程；抓站、体检、工单、资产等功能不依赖任何 Key。配一个国内引擎 Key（如 DeepSeek/GLM）即可解锁「自动推导问题库/品牌事实」和「AI 初稿」。
+**不配任何 Key 也能用**：自动采样会跳过，改用「导出人工采样表 → 人工/浏览器采样 → 回灌」的流程；抓站、体检、工单、资产等功能不依赖任何 Key。配一个国内引擎 Key（如 DeepSeek/GLM）即可解锁「自动推导问题库/品牌事实」和「AI 初稿」。
+
+### 引擎 Key 的两种配置方式
+
+| 方式 | 适用 | 配置 |
+|---|---|---|
+| **A. 302.AI 模式（推荐）** | 想要一把 Key 走天下 + 多源搜索 | `AI302AI_MODE=1` + `AI302AI_API_KEY` |
+| **B. 多 Key 模式** | 已有各大平台账号 / 想要直连 | 每个平台 1 个环境变量（见 [.env.example](.env.example)）|
+
+两种方式**互斥不冲突**：`AI302AI_MODE=1` 时所有平台都走 302.AI；设为 `0` 或不设时走原多 Key 配置。
 
 ### 服务器/远程部署
 
@@ -189,6 +270,30 @@ python3 scripts/geo.py sample-import --slug <项目> --file <采样表>
 
 每条命令 `--help` 有完整参数。
 
+### 302.AI 模式 CLI / Python 用法
+
+```bash
+# 检查 302.AI 配置
+python3 -c "from scripts import sample; print(sample._ai302ai_enabled())"
+
+# 单题多平台对比
+python3 -c "from scripts import sample as s; \
+  [print(p, '->', s.ask(p, 'X 跟 Y 比有什么优势？').get('answer','')[:60]) \
+   for p in ['deepseek', 'claude', 'gemini', 'doubao']]"
+```
+
+```python
+# 直接调 sample 模块的 API（更适合 agent / 自动化脚本）
+import sample
+
+# 9 个搜索 provider 任选（302.AI 模式下）
+sample.search("GeoLook GEO 工具", provider="bocha", count=5)
+sample.search("latest GEO paper",   provider="exa",   count=5, category="research paper")
+
+# 单平台单题（agent 调试用）
+sample.ask("deepseek", "X 跟 Y 比有什么优势？", search_provider="tavily")
+```
+
 ## 评分依据
 
 六个体检维度全部锚在公开实证数据上，`scripts/audit.py` 是 [references/method.md](references/method.md) 的代码实现。几条最有用的结论：
@@ -224,6 +329,49 @@ docs/             截图与 40 秒演示视频
 
 - [@yaojingang](https://github.com/yaojingang)
 
+## 更新日志
+
+### 2026-08-04 · 302.AI 原生集成
+
+**一把 Key 替代 9 把**：
+
+- 新增 `AI302AI_MODE=1` + `AI302AI_API_KEY` 模式：所有 LLM 平台走 302.AI 统一端点 `https://api.302.ai/v1/`
+- 10 个平台默认模型**全部升级到 2026-08 最新稳定版**：
+  - `gpt-5.4-mini` / `claude-sonnet-5` / `gemini-3.5-flash` / `deepseek-v4-flash`
+  - `glm-4.7-flashx` / `kimi-k3` / `doubao-seed-2-1-turbo-260628`
+  - `MiniMax-M2.7` / `grok-4.1` / `sonar`
+- 协议归一：3 种协议（OpenAI / Anthropic / 火山方舟）→ 2 种（OpenAI / Anthropic）
+- Claude Opus 4.6 走 302.AI 比官方便宜 3 倍
+
+**9 个搜索 provider 集成**（[sample.py](scripts/sample.py)）：
+
+- 新增 `search(query, provider, count)` 函数
+- `search_then_ask()` 组合：搜索结果自动拼到 LLM prompt
+- 自动按市场分流：cn → `bocha`，global → `tavily`
+- 实测 8/9 跑通（`unifuncs` 是 302.AI 服务端 500，与代码无关）
+- 9 provider：`bocha` / `tavily` / `exa` / `metaso` / `firecrawl` / `perplexity` / `unifuncs` / `search1_search` / `search1_news`
+- `search1_search` 聚合 13 平台（google/微信/b站/github/arxiv...）
+- `firecrawl` 带整页爬取，实测直击 GitHub repo
+
+**Windows 兼容**（[geolib.py](scripts/geolib.py)）：
+
+- `fcntl` 改为 `try/except ImportError` 兜底
+- 系统代理自动检测（`netsh winhttp show proxy`）
+- 看板在 Windows 上开箱即用，**不需要 WSL**
+
+**`search_then_ask` 修复**：
+
+- 修了"豆包 ark → search_then_ask → ask → ark → 无限递归"bug
+- 改走 `_ask_chat` 直接路径避免重入
+
+详细调研：[docs/302ai-integration-research.md](docs/302ai-integration-research.md)
+架构文档：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Agent-Direct 模式调研：[docs/agent-skill-mode-research.md](docs/agent-skill-mode-research.md)
+
+---
+
 ## License
 
 [MIT](LICENSE)
+
+https://linux.do 感谢佬友

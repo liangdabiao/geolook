@@ -173,8 +173,28 @@ AI302AI_PROVIDERS = {
 
 
 def _ai302ai_enabled() -> bool:
-    """302.AI 模式开关：设了 AI302AI_MODE=1 且 Key 存在就开。"""
-    return os.environ.get("AI302AI_MODE", "").strip().lower() in ("1", "true", "yes", "on")
+    """302.AI 模式开关：AI302AI_MODE=1 且 Key 存在才真正开启。
+
+    安全护栏：设了 AI302AI_MODE=1 但 Key 留空时，**不会静默失败**——
+    而是警告一次并自动回退到原生 Key 模式（向下兼容）。
+    重复调用只警告一次。
+    """
+    flag = os.environ.get("AI302AI_MODE", "").strip().lower() in ("1", "true", "yes", "on")
+    if not flag:
+        return False
+    if not os.environ.get("AI302AI_API_KEY", "").strip():
+        # 用 getattr 兜底：函数对象不能直接 .属性 = 值（首次会 AttributeError）
+        if not getattr(_ai302ai_enabled, "_warned", False):
+            print(
+                "[geolook] ⚠  AI302AI_MODE=1 但 AI302AI_API_KEY 为空 —— "
+                "302.AI 模式已自动关闭，回退到「模式 B：原生 Key」。\n"
+                "[geolook]    要启用 302.AI：编辑 .env 填入 AI302AI_API_KEY=sk-...\n"
+                "[geolook]    想直连原平台：把 AI302AI_MODE 改为 0，再填下方原生 Key。",
+                file=sys.stderr,
+            )
+            _ai302ai_enabled._warned = True  # 后续调用不再警告
+        return False
+    return True
 
 
 # ------------------------------------------------------------ 302.AI 多源搜索
