@@ -28,6 +28,16 @@ import tasks as T
 STATUS_CN = {"todo": "待开始", "doing": "进行中", "done": "已完成",
              "blocked": "受阻", "wontfix": "不做"}
 PRI_NOTE = {"P0": "阻塞项，不做后面全白做", "P1": "主要收益来源", "P2": "长尾与扩量"}
+MARKET_CN = {"cn": "国内", "global": "海外"}
+
+
+def _pct(v, dash="—"):
+    return f"{v:.0%}" if v is not None else dash
+
+
+def _mk_best(engs, mk):
+    v = [e["mention"] for e in engs if e["market"] == mk and e.get("mention") is not None]
+    return f"{max(v):.0%}" if v else "未测"
 
 
 def _tasks_table_md(data: dict, market: str | None = None) -> str:
@@ -79,6 +89,8 @@ def _overview_md(cfg, audit, metrics, data, verify_report, notes=None, existing=
         (["04-验收表.html", "04-验收表.md"], "上一期工单的自动验收结果（做没做完不靠口头确认）"),
         (["05-初稿风险清单.html", "05-初稿风险清单.md"], "AI 初稿里需人工核实的内容（有初稿时才有此项）"),
         (["06-建设地图.html", "06-建设地图.md"], "在哪些平台建设、建什么内容、当前覆盖度"),
+        (["07-引擎表现.html", "07-引擎表现.md"], "逐引擎提及率/引用份额/最强阵地/样本回放——AI 里你最稳和最弱的入口"),
+        (["08-竞品对比.html", "08-竞品对比.md"], "竞品×引擎矩阵、失守与独占问题——在 AI 答案里和竞品掰手腕的位置"),
     ]
     L += ["", "## 本期交付物", "", "| 文件 | 内容 |", "|---|---|"]
     for files, desc in dl_manifest:
@@ -108,19 +120,27 @@ def _overview_md(cfg, audit, metrics, data, verify_report, notes=None, existing=
         L.append("")
     L += ["## 怎么用这份交付", ""]
     howto = ["1. 先看 `[01-诊断报告.html](01-诊断报告.html)` 的「结论先行」和「本期待办」两节"]
+    n = 2
     if "03-工单表.csv" in existing:
-        howto.append("2. 把 `[03-工单表.csv](03-工单表.csv)` 导入你们的项目管理工具，按负责角色分派")
+        howto.append(f"{n}. 把 `[03-工单表.csv](03-工单表.csv)` 导入你们的项目管理工具，按负责角色分派")
     else:
-        howto.append("2. 按 `03-工单表.md` 的明细把工单导入你们的项目管理工具，按负责角色分派")
-    howto.append("3. `assets/` 里的文件可以直接交给开发部署（llms.txt、JSON-LD、HTML 片段）")
+        howto.append(f"{n}. 按 `03-工单表.md` 的明细把工单导入你们的项目管理工具，按负责角色分派")
+    n += 1
+    if "07-引擎表现.html" in existing and "08-竞品对比.html" in existing:
+        howto.append(f"{n}. 想知道 AI 里你强在哪、弱在哪 → 看 `[07-引擎表现.html](07-引擎表现.html)`（逐引擎）"
+                     f"与 `[08-竞品对比.html](08-竞品对比.html)`（对竞品），适合直接转给内容/投放团队")
+        n += 1
+    howto.append(f"{n}. `assets/` 里的文件可以直接交给开发部署（llms.txt、JSON-LD、HTML 片段）")
+    n += 1
     if "05-初稿风险清单.html" in existing:
-        howto.append("4. `assets/outlines/` 是内容大纲，交给内容团队按骨架写；`assets/drafts/` 是 AI 初稿，"
-                     "**必须先按 `[05-初稿风险清单.html](05-初稿风险清单.html)` 逐条核实后才能发布**——"
-                     "AI 会为了填满表格而编造竞品名和参数")
+        howto.append(f"{n}. `assets/outlines/` 是内容大纲，交给内容团队按骨架写；`assets/drafts/` 是 AI 初稿，"
+                     f"**必须先按 `[05-初稿风险清单.html](05-初稿风险清单.html)` 逐条核实后才能发布**——"
+                     f"AI 会为了填满表格而编造竞品名和参数")
     else:
-        howto.append("4. `assets/outlines/` 是内容大纲，交给内容团队按骨架写；"
-                     "`assets/drafts/` 里的 AI 初稿在核实事实前不得发布——AI 会为了填满表格而编造竞品名和参数")
-    howto.append("5. 下一期我们会重跑体检与采样，自动验收哪些工单真的达标了")
+        howto.append(f"{n}. `assets/outlines/` 是内容大纲，交给内容团队按骨架写；"
+                     f"`assets/drafts/` 里的 AI 初稿在核实事实前不得发布——AI 会为了填满表格而编造竞品名和参数")
+    n += 1
+    howto.append(f"{n}. 下一期我们会重跑体检与采样，自动验收哪些工单真的达标了")
     L += howto
     L += ["", "## 服务边界", "",
           "- GEO 提升的是**被引用的概率**，不承诺任何平台一定会引用某个页面",
@@ -145,9 +165,13 @@ def _readme(cfg, data, notes=None) -> str:
 ```
 index.html            ← 先看这个
 01-诊断报告.html/.md
-02-执行方案.md
+02-执行方案.md         （有条件）
 03-工单表.html/.csv
 04-验收表.html
+05-初稿风险清单.html    （有 AI 初稿时才有）
+06-建设地图.html/.md
+07-引擎表现.html/.md
+08-竞品对比.html/.md
 assets/
   llms.txt            部署到网站根目录
   llms.en.txt         英文版（面向海外 AI）
@@ -175,6 +199,100 @@ assets/
 品牌的一句话定义必须在这四处**逐字一致**：官网首屏、关于页、JSON-LD `description`、`llms.txt`。
 不一致是 AI 描述品牌出现漂移的头号原因。
 """
+
+
+def _engines_md(cfg, an, date) -> str:
+    b = cfg["brand"]
+    engs = an.get("engines") or []
+    h = an.get("health") or {}
+    L = [f"# {b['name']} · 引擎表现 · {date}", "",
+         f"本期对 **{len(engs)} 个 AI 引擎**做无提示采样：问题里不出现品牌名，"
+         "考的是 AI 会不会主动想到你。**提及率越高**，说明在 AI 的默认答案里你越容易被看到。", ""]
+    if h.get("score") is not None:
+        names = {"mention": "提及率", "cite": "引用份额", "channel": "渠道覆盖",
+                 "content": "内容承接", "fact": "事实一致性"}
+        parts = [f"{names[k]} {_pct(v)}" for k, v in (h.get("subs") or {}).items()]
+        L += [f"- GEO 健康分：**{h['score']} / 100**（" + " ／ ".join(parts) + "）", ""]
+    for mk in ("cn", "global"):
+        rows = [e for e in engs if e["market"] == mk]
+        if not rows:
+            continue
+        mk_name = MARKET_CN[mk]
+        L += [f"## {mk_name}市场", ""]
+        ment = [e for e in rows if e.get("mention") is not None]
+        if len(ment) >= 2:
+            best = max(ment, key=lambda x: x["mention"])
+            worst = min(ment, key=lambda x: x["mention"])
+            if best["mention"] > worst["mention"]:
+                L += [f"**最好：{best['label']}**（提及率 {best['mention']:.0%}）；"
+                      f"**最弱：{worst['label']}**（{worst['mention']:.0%}）", ""]
+        L += ["| 引擎 | 样本 | 提及率 | 中位位次 | 引用份额 | 联网 | 结论 |",
+              "|---|---|---:|---:|---:|:--:|---|"]
+        for e in rows:
+            share = e.get("cite_share")
+            share_s = f"{share:.0%}（{e['cite_counts'][0]}/{e['cite_counts'][1]}）" if share is not None else "—"
+            L.append(f"| {R.cell(e['label'])} | {e['samples']} | {_pct(e.get('mention'))} "
+                     f"| {e.get('pos_median') or '—'} | {share_s} "
+                     f"| {'联网' if e.get('searched') else '否'} | {R.cell(e.get('verdict') or '—')} |")
+        L.append("")
+        for e in rows:
+            L += [f"### {e['label']}", ""]
+            bd = e.get("brand_dist") or []
+            ts = e.get("top_sources") or []
+            L += ["**这个引擎提到谁**：" + ("、".join(f"{d['name']} {d['rate']:.0%}" for d in bd) if bd else "—"), ""]
+            L += ["**这个引擎最常引用谁**：" + ("、".join(f"`{d}`" for d in ts) if ts else "—（未联网或无引用来源）"), ""]
+            ex = e.get("example")
+            if ex and ex.get("excerpt"):
+                L += [f"> **样本回放**（{ex.get('date', '')}）：_{R.cell(ex.get('question', ''))}_", "",
+                      f"> {R.cell(ex['excerpt'])}"]
+                if ex.get("rank"):
+                    L.append(f"> 位次 {ex['rank']} ／ 引用 {ex.get('n_cites', 0)} 个来源")
+                L.append("")
+    L += ["---", "",
+          "口径：国内与海外分开算、不合并平均；API 与网页端结果不同属正常。"
+          f"生成时间 {G.now_iso()}。", ""]
+    return "\n".join(L)
+
+
+def _competitors_md(cfg, an, date) -> str:
+    b = cfg["brand"]
+    comp = an.get("competitors") or {}
+    L = [f"# {b['name']} · 竞品对比 · {date}", "",
+         "同一批**无提示样本**里，各品牌被 AI 提到的占比（含别名合并）。"
+         "只统计你与已配置的竞品——清单越全，分布越接近真实。", ""]
+    for mk in ("cn", "global"):
+        rows = (comp.get("tables") or {}).get(mk) or []
+        if not rows:
+            continue
+        L += [f"## {MARKET_CN[mk]}市场", "",
+              "| 品牌 | 出现率 | 命中样本 | 最强引擎（它最常在哪被提到） |",
+              "|---|---|---:|---|"]
+        for c in rows:
+            tops = " · ".join(f"{t['label']} {t['rate']:.0%}" for t in (c.get("top_engines") or [])) or "—"
+            L.append(f"| {R.cell(c['name'])} | {_pct(c.get('presence'))} | {c['hits']} | {R.cell(tops)} |")
+        L.append("")
+    for key, title, note, head in (
+            ("lost", "失守问题（你 0%，竞品在）",
+             "这些问题的 AI 答案里你完全缺席而竞品在。**这是最容易抢回的地方**——"
+             "答案已证明该问题有 AI 需求，只是没有你。",
+             ("| 问题 | 市场 | 竞品 | 竞品出现率 |", "|---|---|---:|---:|")),
+            ("won", "独占问题（你在，竞品不在）",
+             "这些问题的答案里你能被提到且没有竞品挤占。**这是你的基本盘**，保持并加深。",
+             ("| 问题 | 市场 | 我的提及率 | 样本 |", "|---|---|---:|---:|"))):
+        rows = comp.get(key) or []
+        if not rows:
+            continue
+        L += [f"## {title}", "", note, ""] + list(head)
+        for r in rows:
+            mkt = MARKET_CN.get(r["market"], r["market"])
+            if key == "lost":
+                L.append(f"| {R.cell(r['question'])} | {mkt} | {R.cell(r['rival'])} | {r['rival_rate']:.0%} |")
+            else:
+                L.append(f"| {R.cell(r['question'])} | {mkt} | {r['mine']:.0%} | {r['samples']} |")
+        L.append("")
+    L += ["---", "", "口径：只统计无提示样本；竞品只在自己市场的样本上算。"
+          f"生成时间 {G.now_iso()}。", ""]
+    return "\n".join(L)
 
 
 def run(slug: str) -> Path:
@@ -379,6 +497,34 @@ def run(slug: str) -> Path:
                           ("内容承接", f"{cov['content_done']}/{cov['content_total']}"),
                           ("内容缺口", str(cov["content_gap"] + sum(
                               1 for c in bp["contents"] if c["status"] == "仅大纲")))]), "utf-8")
+
+    # 07 引擎表现 / 08 竞品对比：复用 UI 同一套 analytics，口径与界面逐字一致
+    try:
+        import analytics as AN
+        an = AN.build(slug)
+    except Exception as e:  # noqa: BLE001
+        an = None
+        G.info(f"引擎/竞品数据计算失败，跳过：{e}")
+    if an and an.get("engines"):
+        emd = _engines_md(cfg, an, G.today())
+        (out / "07-引擎表现.md").write_text(emd, "utf-8")
+        engs = an["engines"]
+        (out / "07-引擎表现.html").write_text(
+            R.build_html(f"{cfg['brand']['name']} · 引擎表现", emd,
+                         [("引擎数", str(len(engs))),
+                          ("GEO 健康分", f"{an['health']['score']}" if an["health"].get("score") is not None else "未测"),
+                          ("国内最高提及", _mk_best(engs, "cn")),
+                          ("海外最高提及", _mk_best(engs, "global"))]), "utf-8")
+    if an and (an.get("competitors") or {}).get("tables"):
+        cmd = _competitors_md(cfg, an, G.today())
+        (out / "08-竞品对比.md").write_text(cmd, "utf-8")
+        comp = an["competitors"]
+        (out / "08-竞品对比.html").write_text(
+            R.build_html(f"{cfg['brand']['name']} · 竞品对比", cmd,
+                         [("竞品数", str(len(comp.get("table") or []))),
+                          ("失守问题", str(len(comp.get("lost") or []))),
+                          ("独占问题", str(len(comp.get("won") or []))),
+                          ("无提示样本", str(comp.get("sample_n") or 0))]), "utf-8")
 
     # assets
     adir = pdir / "assets"

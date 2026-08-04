@@ -231,7 +231,9 @@ python3 scripts/geo.py status --slug <项目>     # 进度看板
 ### 客户交付 `deliver`
 
 打包到 `work/<slug>/delivery/<日期>/`：总览 index、诊断报告、执行方案、
-工单表（HTML + CSV 可导进项目管理工具）、验收表、assets 目录、交付说明。
+工单表（HTML + CSV 可导进项目管理工具）、验收表、建设地图、**引擎表现 / 竞品对比**
+（复用 UI 同一套 analytics 口径，逐引擎提及率/引用份额/样本回放 + 竞品×引擎矩阵/失守问题）、
+assets 目录、交付说明。
 
 跑完之后你要做的事（脚本做不了的部分）：
 
